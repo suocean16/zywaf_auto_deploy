@@ -1,16 +1,22 @@
 #!/usr/bin/bash
 	
-usage="Usage:\n$0 -u username -p password -b build-version -i web_ip, -t web_port, -z zywaf_port, -d domain  -m [full|auto]"\
+usage="Usage:\n$0 -u username -p password -b build-version"\
 "\n\t\tusername: zyprotect ftp username"\
 "\n\t\tpassword: zyprotect ftp password"\
-"\n\t\tusername: zyprotect build version eg: 1802, 4017"\
-"\n\t\tweb_ip: the Web Site IP address"\
-"\n\t\tweb_port: the Web Site listening port"\
-"\n\t\tdomain: the Web Site domain name"\
-"\n\t\tfull/auto: full: it will remove all WAF file and install whole files."\
-"\n\t\t           auto: it only reinstall when their is a old zyWAF installation."
+"\n\t\tbuild_version: zyprotect build version eg: 1802, 4017"
+#"\n\t\tweb_ip: the Web Site IP address"\
+#"\n\t\tweb_port: the Web Site listening port"\
+#"\n\t\tdomain: the Web Site domain name"\
+#"\n\t\tfull/auto: full: it will remove all WAF file and install whole files."\
+#"\n\t\t           auto: it only reinstall when their is a old zyWAF installation."
 
-
+file_name="zywaf_upgrade.log"
+#these string will be parsed
+NOT_ROOT="Need Root privileges"
+VALID_PACKAGE="Valid zyWAF upgrade package"
+INVALID_PACKAGE="Invalid zyWAF upgrade package"
+SAME_OLDER_VERSION="Older or same then installed version"
+UPGRADE_SUC="Upgrade system success"
 
 while getopts "u:p:b:i:t:z:d:m:" arg 
 do
@@ -51,28 +57,6 @@ ftpgetimage()
 	wget --ftp-user=${username} --ftp-password=${password}   ftp://lab.zyprotect.com:1483/images/${build_version}/zyWAF*${build_version}*.rpm
 	return $?
 }
-if [ ! -e zyWAF*${build_version}*.rpm ]; then
-	echo "rpm file do not exist , we will download it"
-	ftpgetimage
-fi
-
-if [ $? != 0 ]; then
-	echo "Fail to get rpm file"
-	exit 1
-fi
-rpm_file=`ls -1 zyWAF*${build_version}*.rpm`
-echo "Success get rpm file ${rpm_file}"
-
-#######
-
-file_name="zywaf_upgrade.log"
-#these string will be parsed
-NOT_ROOT="Need Root privileges"
-VALID_PACKAGE="Valid zyWAF upgrade package"
-INVALID_PACKAGE="Invalid zyWAF upgrade package"
-SAME_OLDER_VERSION="Older or same then installed version"
-UPGRADE_SUC="Upgrade system success"
-
 validation()
 {	
 	/usr/bin/echo "start validation" >> /tmp/${file_name}
@@ -101,8 +85,14 @@ validation()
         /usr/bin/echo ${VALID_PACKAGE}
         return 0
     else
-      /usr/bin/echo ${SAME_OLDER_VERSION}
-        return 1
+        /usr/bin/echo ${SAME_OLDER_VERSION}
+
+	echo "Do you want reinstall it?"
+	read -r -p "Are You Sure? [Y/n] " input
+	case $input in
+		[nN]) exit 0;;
+	esac
+        return 0
   fi
 }
 
@@ -167,14 +157,14 @@ zywaf_upgrade()
 	    fi
 		/usr/bin/echo "start upgrade" > /tmp/${file_name}
 		validation ||  exit 1
-		stop_service && 
-		sleep 3 &&
-		uninstall_rpm &&
-		sleep 3 &&
-		install_rpm &&
-		sleep 3 &&
-		/usr/bin/systemctl daemon-reload
-		sleep 3 
+		stop_service ;
+		sleep 3 ;
+		uninstall_rpm ;
+		sleep 3 ;
+		install_rpm ;
+		sleep 3 ;
+		/usr/bin/systemctl daemon-reload;
+		sleep 3 ;
 		restart_service 
 		ret=$?
 		[[ ${ret} == "0" ]] && echo ${UPGRADE_SUC} >> /tmp/${file_name}
@@ -183,7 +173,35 @@ zywaf_upgrade()
 	fi
 }
 
+if [ "x${username}" == "x" -o "x${password}" == "x" -o "x${build_version}" == "x" ]; then
+	echo -e $usage
+	exit 0
+fi
 
+echo "Will start to get image from zyprotect FTP server"
+read -r -p "Are You Sure? [Y/n] " input
+case $input in
+        [nN]) exit 0;;
+esac
+
+
+if [ ! -e zyWAF*${build_version}*.rpm ]; then
+	echo "rpm file do not exist , we will download it"
+	ftpgetimage
+fi
+
+if [ $? != 0 ]; then
+	echo "Fail to get rpm file"
+	exit 1
+fi
+rpm_file=`ls -1 zyWAF*${build_version}*.rpm`
+
+
+echo "Success get RPM file. Will start to upgrade system"
+read -r -p "Are You Sure? [Y/n] " input
+case $input in
+        [nN]) exit 0;;
+esac
 
 zywaf_upgrade "upgrade" ${rpm_file}
 
