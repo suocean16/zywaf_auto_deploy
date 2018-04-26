@@ -76,6 +76,8 @@ sed -i "1,20s/<listen-ip.*/<listen-ip>${web_ip}<\/listen-ip>/g" ${config_file}
 sed -i "s/<web-server-port>.*<\/web-server-port>/<web-server-port>${web_port}<\/web-server-port>/g" ${config_file}
 sed -i "1,20s/<listen-port>.*<\/listen-port>/<listen-port>${zywaf_port}<\/listen-port>/g" ${config_file}
 sed -i "1,20s/<web-server-name>.*<\/web-server-name>/<web-server-name>${web_ip}<\/web-server-name>/g" ${config_file}
+sed -i "1,10s/<web-server-name \/>/<web-server-name>${web_ip}<\/web-server-name>/g" ${config_file}
+
 if ! fgrep "<host-name>${domain}" ${config_file} > /dev/null; then
 	sed -i "1,30s/<\/host-names>/<host-name>${domain}<\/host-name>\n<\/host-names>/g" ${config_file}
 fi
@@ -121,7 +123,7 @@ case $input in
 	[nN]) exit 0;;
 esac
 
-wget --recursive --spider --level=100 --wait=1  http://${domain}
+wget --recursive --spider --level=100 --wait=1  http://${domain}:${zywaf_port}
 
 
 if fgrep ${domain} /etc/hosts > /dev/null; then 
